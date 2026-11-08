@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 # --- Broker Configuration ---
-BROKER_ADDRESS = "localhost"  # Use your computer's IP if the ESP32 is on another machine
+BROKER_ADDRESS = "192.168.1.151"  # Use your computer's IP if the ESP32 is on another machine
 PORT = 1883
 TOPIC = "parking/#"           # The '#' wildcard now listens to sensors AND the gate
 USERNAME = "iot_user"         
