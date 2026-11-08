@@ -11,7 +11,6 @@ int duration = 0;
 bool taynna = false;
 
 
-
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -27,22 +26,14 @@ void setup()
     while(1);
   }
   
-  
-  
 }
 
 void loop()
 {
-
-  
-
-  
   //Set the cursor to column 0 line 1
   lcd.setCursor(0,1);
   
   lcd.setBacklight(HIGH);
-
-
 
 
   digitalWrite(pingPin, LOW);
