@@ -47,8 +47,6 @@ void loop() {
   lcd.setBacklight(HIGH);
 
 
-
-
   digitalWrite(pingPin, LOW);
   delayMicroseconds(2);
   digitalWrite(pingPin, HIGH);
