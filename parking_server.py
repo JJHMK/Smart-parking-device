@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
+import csv  # <-- CSV import added
 from datetime import datetime
 
 # --- Broker Configuration ---
@@ -51,6 +52,13 @@ def on_message(client, userdata, msg):
                     parking_database[spot_name]["status"] = new_status
                     now = datetime.now()
                     timestamp = now.strftime("%H:%M:%S")
+                    
+                    # --- NEW: CSV LOGGING ---
+                    # Appends a new row to parking_data.csv every time a spot changes status
+                    with open("parking_data.csv", "a", newline="") as file:
+                        writer = csv.writer(file)
+                        writer.writerow([timestamp, spot_name, new_status])
+                    # ------------------------
                     
                     if new_status == "Occupied":
                         # Auto saapuu, tallennetaan aloitusaika
@@ -107,6 +115,6 @@ client.username_pw_set(USERNAME, PASSWORD)
 client.on_connect = on_connect
 client.on_message = on_message
 
-print("Initializing local parking server with Gate Logic & Time Tracking...")
+print("Initializing local parking server with Gate Logic, Time Tracking & CSV Logging...")
 client.connect(BROKER_ADDRESS, PORT, 60)
 client.loop_forever()
