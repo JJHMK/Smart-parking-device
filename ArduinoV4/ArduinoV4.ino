@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 
 // =========================
 // WIFI
@@ -21,6 +22,8 @@ const char* mqtt_pass = "19863cpn89";
 
 const char* sensorTopic = "parking/sensor";
 const char* displayTopic = "parking/display";
+
+const char* gateControlTopic = "parking/gate/control";
 
 // =========================
 // HC-SR04 Anturi 1
@@ -44,7 +47,15 @@ const int trigPin3 = 21;
 const int echoPin3 = 22;
 
 // =========================
+// Servo
+//==========================
 
+Servo gateServo;
+const int servoPin = 13;
+
+//==========================
+
+//==========================
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -94,6 +105,29 @@ void callback(char* topic, byte* payload, unsigned int length)
     Serial.print("Message: ");
     Serial.println(message);
 
+    if (String(topic) == gateControlTopic)
+    {
+        DynamicJsonDocument doc(128);
+
+        DeserializationError error = deserializeJson(doc, message);
+
+        if(!error)
+        {
+            String command = doc["command"];
+
+            if (command == "open")
+            {
+                Serial.println("PORTTI AUKI");
+
+                gateServo.write(90);
+                delay(3000);
+
+                gateServo.write(0);
+                //Serial.println("PORTTI KIINNI");
+            }
+        }
+    }
+
     Serial.println("==========================");
 }
 
@@ -115,9 +149,13 @@ void reconnect()
             Serial.println(" OK");
 
             client.subscribe(displayTopic);
+            client.subscribe(gateControlTopic);
 
             Serial.print("Tilattu topic: ");
             Serial.println(displayTopic);
+
+            Serial.println("Tilattu topic");
+            Serial.println(gateControlTopic);
         }
         else
         {
@@ -176,6 +214,9 @@ void setup()
 
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
+
+    gateServo.attach(servoPin);
+    gateServo.write(0); // Portti kiinni aluksi
 }
 
 // =========================

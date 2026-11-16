@@ -65,6 +65,11 @@ def on_message(client, userdata, msg):
                     parking_database[spot_name]["parked_at"] = now
 
                     print(f"{spot_name} OCCUPIED")
+                    
+                    # Jos anturi 1. tunnistaa auton
+                    if spot_name == "spot_1":
+                        client.publish("parking/gate/control", json.dumps({"command": "open"}))
+                        print("Gate open command sent")
 
                 else:
 
@@ -78,6 +83,10 @@ def on_message(client, userdata, msg):
                             f"{spot_name} released after {minutes} minutes"
                         )
 
+                    if spot_name == "spot_1":
+                        client.publish("parking/gate/control", json.dumps({"command": "close"}))
+                        print("Gate close command sent")
+                    
                     parking_database[spot_name]["parked_at"] = None
 
                 print("\n===== PARKING STATUS =====")
