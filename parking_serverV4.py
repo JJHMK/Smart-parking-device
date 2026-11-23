@@ -1,9 +1,15 @@
 import paho.mqtt.client as mqtt
 import json
 import csv
+import time
+import traceback
 from datetime import datetime
 
-BROKER_ADDRESS = "10.29.217.207"
+# ==================================================
+# MQTT ASETUKSET
+# ==================================================
+
+BROKER_ADDRESS = "10.60.207.207"
 PORT = 1883
 
 USERNAME = "iot_user"
@@ -11,24 +17,59 @@ PASSWORD = "19863cpn89"
 
 TOPIC = "parking/#"
 
+# ==================================================
+# PARKKIPAIKKOJEN TIETOKANTA
+# ==================================================
+
 parking_database = {}
 
+# ==================================================
+# MQTT YHDISTETTY
+# ==================================================
 
 def on_connect(client, userdata, flags, rc):
+
     if rc == 0:
         print("MQTT Connected")
         client.subscribe(TOPIC)
-    else:
-        print("Connection failed:", rc)
 
+    else:
+        print("MQTT connection failed:", rc)
+
+# ==================================================
+# MQTT VIESTI VASTAANOTETTU
+# ==================================================
 
 def on_message(client, userdata, msg):
 
+    # Ei käsitellä näyttöviestejä uudelleen
     if msg.topic == "parking/display":
         return
 
     try:
+
         data = json.loads(msg.payload.decode())
+
+        # ==========================================
+        # PARKKIPAIKKA-ANTURIT
+        # ==========================================
+        
+        if msg.topic == "parking/gate/sensor":
+
+            distance_cm = data.get("distance_cm")
+
+            if distance_cm is None:
+                return
+
+            if distance_cm < 50:
+
+                client.publish("parking/gate/control", json.dumps({"command": "open"}) )
+
+                print("Gate OPEN command sent")
+
+        return
+        
+        
 
         if msg.topic == "parking/sensor":
 
@@ -38,90 +79,145 @@ def on_message(client, userdata, msg):
             if spot_name is None:
                 return
 
+            if distance_cm is None:
+                return
+
+            # Luodaan paikka ensimmäisellä kerralla
             if spot_name not in parking_database:
+
                 parking_database[spot_name] = {
                     "status": "Vacant",
                     "parked_at": None
                 }
 
-            new_status = "Occupied" if distance_cm < 50 else "Vacant"
             old_status = parking_database[spot_name]["status"]
 
-            if new_status != old_status:
+            # ======================================
+            # HYSTEREESI
+            #
+            # < 50 cm  = Occupied
+            # > 80 cm  = Vacant
+            # 50-80 cm = pidä vanha tila
+            # ======================================
 
-                parking_database[spot_name]["status"] = new_status
+            old_status = parking_database[spot_name]["status"]
+
+            print(f"{spot_name} distance={distance_cm} old={old_status}"
+            )
+
+            if distance_cm < 50:
+                new_status = "Occupied"
+
+            elif distance_cm > 80:
+                new_status = "Vacant"
+
+            else:
+                new_status = old_status
+
+            print(f"{spot_name} -> {new_status}")
+
+            # ======================================
+            # TALLENNETAAN CSV:HEN
+            # ======================================
+
+            with open("parking_data.csv", "a", newline="") as file:
+                
                 now = datetime.now()
+                writer = csv.writer(file)
 
-                with open("parking_data.csv", "a", newline="") as file:
-                    writer = csv.writer(file)
-                    writer.writerow([
-                        now.strftime("%Y-%m-%d %H:%M:%S"),
-                        spot_name,
-                        new_status
-                    ])
+                writer.writerow([
+                    now.strftime("%Y-%m-%d %H:%M:%S"),
+                    spot_name,
+                    new_status
+                ])
 
-                if new_status == "Occupied":
+            # ======================================
+            # AUTO SAAPUI
+            # ======================================
 
-                    parking_database[spot_name]["parked_at"] = now
+            if new_status == "Occupied":
 
-                    print(f"{spot_name} OCCUPIED")
+                parking_database[spot_name]["parked_at"] = now
+
+                print(f"\n{spot_name} OCCUPIED")
+                print(f"Distance: {distance_cm} cm")
+
+                distance_cm = data.get("distance_cm")    
                     
-                    # Jos anturi 1. tunnistaa auton
-                    if spot_name == "spot_1":
-                        client.publish("parking/gate/control", json.dumps({"command": "open"}))
-                        print("Gate open command sent")
+                # Spot 1 ohjaa porttia
+                if spot_name == "spot_1":
 
-                else:
+                    client.publish(
+                        "parking/gate/control",
+                        json.dumps({"command": "open"})
+                    )
 
-                    parked_at = parking_database[spot_name]["parked_at"]
+                    print("Gate OPEN command sent")
 
-                    if parked_at:
-                        duration = now - parked_at
-                        minutes = int(duration.total_seconds() / 60)
 
-                        print(
-                            f"{spot_name} released after {minutes} minutes"
-                        )
 
-                    if spot_name == "spot_1":
-                        client.publish("parking/gate/control", json.dumps({"command": "close"}))
-                        print("Gate close command sent")
-                    
+            # ======================================
+            # AUTO POISTUI
+            # ======================================
+
+            else:
+
+                parked_at = parking_database[spot_name]["parked_at"]
+
+                if parked_at:
+
+                    duration = now - parked_at
+                    minutes = int(duration.total_seconds() / 60)
+
+                    print(
+                        f"\n{spot_name} released after {minutes} min")
+
                     parking_database[spot_name]["parked_at"] = None
 
-                print("\n===== PARKING STATUS =====")
+            # ======================================
+            # TULOSTETAAN TILA
+            # ======================================
 
-                for spot, info in parking_database.items():
-                    print(
-                        f"{spot}: {info['status']}"
-                    )
+            print("\n===== PARKING STATUS =====")
+
+            for spot, info in parking_database.items():
+
+                print(f"{spot}: {info['status']}")
+
+                print("==========================")
+
+                # ==========================================
+                # PORTIN TILATAPAHTUMA
+                # ==========================================
 
         elif msg.topic == "parking/gate/status":
 
-            if data.get("event") == "car_arrived":
+                        if data.get("event") == "car_arrived":
 
-                available_spot = "TAYNNA"
+                            available_spot = "TAYNNA"
 
-                for spot, info in parking_database.items():
+                            for spot, info in parking_database.items():
 
-                    if info["status"] == "Vacant":
+                                if info["status"] == "Vacant":
 
-                        number = spot.split("_")[1]
-                        available_spot = f"Paikka {number}"
-                        break
+                                    number = spot.split("_")[1]
+                                    available_spot = f"Paikka {number}"
 
-                client.publish(
-                    "parking/display",
-                    available_spot
-                )
+                                    break
 
-                print(
-                    f"Assigned: {available_spot}"
-                )
+        client.publish("parking/display",available_spot)
 
-    except Exception as e:
-        print("Error:", e)
+        print(f"Assigned parking spot: {available_spot}")
 
+    except Exception:
+
+        print("\n===== ERROR =====")
+        traceback.print_exc()
+        print("=================\n")
+
+# ==================================================
+# MQTT CLIENT
+# ==================================================
 
 client = mqtt.Client()
 
@@ -133,6 +229,10 @@ client.username_pw_set(
 client.on_connect = on_connect
 client.on_message = on_message
 
+# ==================================================
+# KÄYNNISTYS
+# ==================================================
+
 print("Parking server started")
 
 client.connect(
@@ -142,3 +242,6 @@ client.connect(
 )
 
 client.loop_forever()
+
+
+

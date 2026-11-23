@@ -11,3 +11,10 @@ Käynnistä powershellissä mosquitto
 
 Muista puhelimen wifi jako. Silloin oikeat ip-osoitteet.
 Viimeisin versio 4
+
+Erilliset versiot esp32 ja arduino versio
+
+
+
+
+
