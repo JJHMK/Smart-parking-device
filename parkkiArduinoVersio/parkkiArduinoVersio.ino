@@ -8,9 +8,17 @@
 #include <SeeedOLED.h>
 
 
+// =========================
+// LEDit
+// =========================
 
+// Paikka 1
+const int spot1RedLed = 6; // Tarkista vielä pinnit kaikista
+const int spot1GreenLed = 7;
 
-
+// Paikka 2
+const int spot2RedLed = 8;
+const int spot2GreenLed = 9;
 
 
 
@@ -37,19 +45,19 @@ const char* displayTopic = "parking/display";
 const char* gateControlTopic = "parking/gate/control";
 
 // =========================
-// Grove-ultrasonic Ranger1
+// Grove-ultrasonic Portti
 // =========================
 
 Ultrasonic ultrasonic(3);
 
 // =========================
-// Grove-ultrasonic Ranger1
+// Grove-ultrasonic Ranger Paikka1
 // =========================
 
 Ultrasonic ultrasonic2(4);
 
 // =========================
- //Grove-ultrasonic Ranger1
+ //Grove-ultrasonic Ranger Paikka2
 // =========================
 
 Ultrasonic ultrasonic3(5);
@@ -70,6 +78,37 @@ const int echoPin2 = 19;
 const int trigPin3 = 21;
 const int echoPin3 = 22;
 */
+
+// =========================
+// LED-ohjaus
+// =========================
+void updateLEDs(bool spot1Occupied, bool spot2Occupied)
+{
+    // Paikka 1
+    if (spot1Occupied)
+    {
+        digitalWrite(spot1RedLed, HIGH);
+        digitalWrite(spot1GreenLed, LOW);
+    }
+    else
+    {
+        digitalWrite(spot1RedLed, LOW);
+        digitalWrite(spot1GreenLed, HIGH);
+    }
+
+    // Paikka 2
+    if (spot2Occupied)
+    {
+        digitalWrite(spot2RedLed, HIGH);
+        digitalWrite(spot2GreenLed, LOW);
+    }
+    else
+    {
+        digitalWrite(spot2RedLed, LOW);
+        digitalWrite(spot2GreenLed, HIGH);
+    }
+}
+
 
 //==========================
 // Näyttö
@@ -341,9 +380,14 @@ void setup()
     SeeedOled.setPageMode();           //Set addressing mode to Page Mode
     SeeedOled.setTextXY(0,0);          //Set the cursor to Xth Page, Yth Column  
     SeeedOled.putString("Hello World!"); //Print the String
-
-
 }
+
+//==================LED===========
+pinMode(spot1RedLed, OUTPUT);
+pinMode(spot1GreenLed, OUTPUT);
+
+pinMode(spot2RedLed, OUTPUT);
+pinMode(spot2GreenLed, OUTPUT);
 
 // =========================
 // Loop
@@ -465,6 +509,9 @@ void loop()
         //Näyttö
         //==========================
         updateDisplay(spot1Occupied, spot2Occupied); 
+
+        //==========LED==============
+        updateLEDs(spot1Occupied, spot2Occupied);
 
 
 
